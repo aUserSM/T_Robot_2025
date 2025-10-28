@@ -1,0 +1,3 @@
+/home/sten/gazebo/gazebo_lidar4/build/CMakeFiles/lidar_node.dir
+/home/sten/gazebo/gazebo_lidar4/build/CMakeFiles/edit_cache.dir
+/home/sten/gazebo/gazebo_lidar4/build/CMakeFiles/rebuild_cache.dir
