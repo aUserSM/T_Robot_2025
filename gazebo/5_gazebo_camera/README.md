@@ -1,0 +1,1 @@
+Run python camera "w2_camsub" from ros2_ws/src/
