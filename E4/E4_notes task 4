@@ -1,0 +1,151 @@
+import cv2
+import time
+import numpy as np
+import imutils
+
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml') 
+
+
+
+
+
+
+
+
+
+def prep(img):
+    ## ToDo 4.1.2
+    #  1. resize using  imutils.resize()
+    img = imutils.resize(img, width=600)
+    #  2. flip image vertically using cv2.flip()
+    img = cv2.flip(img, 1)
+    #  3. convert to gray color using cv2.cvtColor()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return gray, img    
+    
+    
+
+
+
+
+
+def get_trackable_points(gray, img):
+    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+
+    p0_img_coords = np.array([], dtype=np.float32).reshape(-1, 2)  # always safe
+
+    if len(faces) != 0:
+        # for (x,y,w,h) in faces:
+        #   draw rectang
+        #   slice ROI  
+        for (x, y, w, h) in faces:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            roi_gray = gray[y:y + h, x:x + w]
+
+            p0 = cv2.goodFeaturesToTrack(roi_gray,maxCorners=70,qualityLevel=0.001,minDistance=5)
+
+            # ToDO 4.1.3
+            #  covert fromat of p0 to [[x1,y1],[x2,y2],....] 
+            #  convert points from ROI to image coordinates
+            if p0 is not None:
+                p0 = np.float32(p0).reshape(-1, 2)
+                # shift ROI points into image coordinates
+                p0[:, 0] += x
+                p0[:, 1] += y
+                p0_img_coords = p0
+
+    return p0_img_coords, faces if len(faces) > 0 else [], img
+
+
+
+
+
+
+
+
+def do_track_face(gray_prev, gray, p0):
+    if p0 is None or len(p0) == 0:
+        return np.array([], dtype=np.float32).reshape(-1, 2)
+    
+    # reshape for LK
+    p0 = np.array(p0, dtype=np.float32).reshape(-1, 1, 2)
+        
+    p1, isFound, err = cv2.calcOpticalFlowPyrLK(gray_prev, gray, p0, 
+                                                            None,
+                                                            winSize=(31,31),
+                                                            maxLevel=10,
+                                                            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.03),
+                                                            flags=cv2.OPTFLOW_LK_GET_MIN_EIGENVALS,
+                                                            minEigThreshold=0.00025)
+    ## ToDo 4.1.3 - Select valid points from p1
+    # return a numpy array of selected points from p1
+    if p1 is not None and isFound is not None:
+        valid_points = p1[isFound.flatten() == 1].reshape(-1, 2)
+        valid_points = np.int32(valid_points)  # cast to int for drawing
+    else:
+        valid_points = np.array([], dtype=np.float32).reshape(-1, 2)
+
+    return valid_points
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+   frame_rate = 30
+prev = 0
+gray_prev = None
+p0 = []
+
+if 0 == 1:
+    cam = cv2.VideoCapture("Face.mp4")
+else:
+    cam = cv2.VideoCapture(0, cv2.CAP_V4L2)
+
+if not cam.isOpened():
+    raise Exception("Could not open camera/file")
+    
+while True:
+    time_elapsed = time.time() - prev
+    
+    if time_elapsed > 1./frame_rate:
+        
+        ret_val,img = cam.read()
+        
+        if not ret_val:
+                cam.set(cv2.CAP_PROP_POS_FRAMES, 0)  # restart video
+                gray_prev = None  # previous frame
+                p0 = []  # previous points
+                continue
+        prev = time.time()
+        
+        gray, img = prep(img)
+
+        if len(p0) <= 40: #10
+            p0, faces, img = get_trackable_points(gray,img)
+            gray_prev = gray.copy()
+        
+        else:
+            for (x,y,w,h) in faces:
+                cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
+                p1 = do_track_face(gray_prev, gray, p0)
+                print(len(p1))
+            for i in p1:
+                cv2.drawMarker(img, (i[0], i[1]),[255,0,0],0)
+            p0 = p1
+                   
+        cv2.imshow('Video feed', img)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+              
+cv2.destroyAllWindows()  

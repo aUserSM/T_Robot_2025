@@ -1,0 +1,301 @@
+# Exercise 4 -Computer Vision
+
+
+### 4.1 - Face Detection and Tracking
+In this task you will implement face detection and tracking using OpenCV. Specifically we are utilizing Cascade classifiers which implements Viola-Jones detection algorithm.
+
+**Reference**
+- [OpenCV documentation on cascade classifier](https://docs.opencv.org/master/db/d28/tutorial_cascade_classifier.html)
+
+### 4.1.1
+Execute the code below to initiate the cascadee classifier and the utility libraries
+
+
+
+
+
+
+
+
+
+
+import cv2
+import time
+import numpy as np
+import imutils
+
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml') 
+
+
+
+
+
+
+
+
+### 4.1.2
+
+Similar to Task 3, the first step is to obtain a frame from video file and pre-processing it. 
+
+**Your task**
+
+Complete prep() function below which performs following using opencv and imutils libraries. The steps already implemented are marked with a tick "✓"
+
+- [x] Takes a frame from video feed as the input
+- [ ] Resize the frame while protecting the aspect ratio (width = 600) 
+- [ ] Flip the image
+- [ ] Convert the frame to grayscale image
+- [x] Return grayscale image and resized image 
+
+**References**
+
+- [imutils documentation](https://github.com/PyImageSearch/imutils#imutils)
+- [Fip an array with OpenCV](https://docs.opencv.org/4.x/d2/de8/group__core__array.html#gaca7be533e3dac7feb70fc60635adf441)
+- [color conversion with OpenCV](https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html)
+
+
+
+
+
+
+def prep(img):
+    ## ToDo 4.1.2
+    #  1. resize using  imutils.resize()
+    img = imutils.resize(img, width=600)
+    #  2. flip image vertically using cv2.flip()
+    img = cv2.flip(img, 1)
+    #  3. convert to gray color using cv2.cvtColor()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return gray, img    
+    
+    
+    
+    
+
+### 4.1.3
+
+In 4.1.1 we initialized an instance of cascade classifier. Tracking a face can be broken down into 3 steps as below
+
+1. Detect Faces and ROIs
+
+   The cascade classifier has a member function which can detect faces of multiple scales in a given image. The area where a face is detected becomes a region of interest (ROI) for extracting meaningful information. 
+
+    **References** : 
+    [Multiscale face detection member function of cascade classifier](https://docs.opencv.org/3.4/d1/de5/classcv_1_1CascadeClassifier.html#a90fe1b7778bed4a27aa8482e1eecc116)
+
+
+2. Extract trackable features 
+
+    Shi-Tomasi Corner Detector is an implementation in openCV which extracts information from the ROI input. The extracted information are points on the face which are are trackable across a sequence of moving frames (a video).
+
+    **References** : 
+    [OpenCV Trackable feature extraction function(Shi-Tomasi Corner Detector)](https://docs.opencv.org/4.5.2/d4/d8c/tutorial_py_shi_tomasi.html)
+
+
+3. Calculate the optical flow
+
+    These trackable points are used to calculate the optical flow of the faces with calcOpticalFlowPyrLK() function. The tracking is visualized via OpenCV drawing tools.
+
+    **References** : 
+    - [Optical Flow calculation](https://docs.opencv.org/4.5.3/d4/dee/tutorial_optical_flow.html)
+    - [OpenCV drawing functions](https://docs.opencv.org/4.5.2/dc/da5/tutorial_py_drawing_functions.html)
+
+**Your task**
+
+Complete the function which perfoms following
+
+- [x] Takes grayscale image and resized image as the input
+- [x] Detect faces in graycale image using cascade classifier. detectMultiscale() function returns detected faces as rectangles ( Top left x coordinate, Top left y coordinate, width, height)
+- [ ] Draw a rectangle around detected faces using OpenCV drawing functions
+- [ ] Slice a region of interest (ROI) from grayecale image corresponding to the detections
+- [x] Extract good features to track (p0), from OpenCV goodFeaturesToTrack() function.
+- [ ] Convert the array p0 from current format [[[x1,y1],[x2,y2],....]] to --> [[x1,y1],[x2,y2],....]. Tip : print p0 to observe current format
+- [ ] The points are located with respect to the ROI coordinates. Convert them to image coordinates
+
+
+
+
+'''def get_trackable_points(gray,img):
+    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+    p0_img_coords = None
+    
+    if len(faces) != 0:
+        
+        ## ToDO 4.1.3
+        # for (x,y,w,h) in faces:
+        #   draw rectang
+        #   slice ROI      
+        for (x,y,w,h) in faces:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            roi_gray = gray[y:y + h, x:x + w]
+    
+        p0 = cv2.goodFeaturesToTrack(roi_gray,maxCorners=70,qualityLevel=0.001,minDistance=5)
+        # ToDO 4.1.3
+        #  covert fromat of p0 to [[x1,y1],[x2,y2],....] 
+        #  convert points from ROI to image coordinates
+        if p0 is not None:
+                p0 = np.int0(p0)
+
+                # Convert ROI-local points to image coordinates
+                p0_img_coords = []
+                for pt in p0:
+                    px, py = pt.ravel()
+                    p0_img_coords.append([px + x, py + y])  # shift by ROI offset
+
+                p0_img_coords = np.array(p0_img_coords)
+        
+   
+   
+    return p0_img_coords, faces, img
+'''
+def get_trackable_points(gray, img):
+    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+
+    p0_img_coords = np.array([], dtype=np.float32).reshape(-1, 2)  # always safe
+
+    if len(faces) != 0:
+        
+        ## ToDO 4.1.3
+        # for (x,y,w,h) in faces:
+        #   draw rectang
+        #   slice ROI  
+        for (x, y, w, h) in faces:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            roi_gray = gray[y:y + h, x:x + w]
+
+        p0 = cv2.goodFeaturesToTrack(roi_gray,maxCorners=70,qualityLevel=0.001,minDistance=5)
+
+        # ToDO 4.1.3
+        #  covert fromat of p0 to [[x1,y1],[x2,y2],....] 
+        #  convert points from ROI to image coordinates
+        if p0 is not None:
+            p0 = np.float32(p0).reshape(-1, 2)
+            # shift ROI points into image coordinates
+            
+            #p0[:, 0] += x
+            #p0[:, 1] += y
+            #p0_img_coords = p0
+            p0_img_coords = p0 + np.array([x, y], dtype=np.float32)
+
+
+    return p0_img_coords, faces, img
+
+
+
+
+
+
+
+
+
+**Your task**
+
+Complete the do_track_face() function which perfoms following
+
+- [x] Usecv2.calcOpticalFlowPyrLK()to calculate the optical flow for tracking face
+- [ ] Select the valid points from p1. Note that  isFound == 1 for valid points 
+- [ ] Return the valid points as a numpy array
+
+
+
+def do_track_face(gray_prev, gray, p0):
+    if p0 is None or len(p0) == 0:
+        return np.array([], dtype=np.float32).reshape(-1, 2)
+    
+    # reshape for LK
+    p0 = np.array(p0, dtype=np.float32).reshape(-1, 1, 2)
+        
+    p1, isFound, err = cv2.calcOpticalFlowPyrLK(gray_prev, gray, p0, 
+                                                            None,
+                                                            winSize=(31,31),
+                                                            maxLevel=10,
+                                                            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.03),
+                                                            flags=cv2.OPTFLOW_LK_GET_MIN_EIGENVALS,
+                                                            minEigThreshold=0.00025)
+    ## ToDo 4.1.3 - Select valid points from p1
+    # return a numpy array of selected points from p1
+    if p1 is not None and isFound is not None:
+        valid_points = p1[isFound.flatten() == 1].reshape(-1, 2)
+        valid_points = np.int32(valid_points)  # cast to int for drawing
+    else:
+        valid_points = np.array([], dtype=np.float32).reshape(-1, 2)
+
+    return valid_points
+    '''
+    if p1 is None or isFound is None:
+        return np.empty((0, 2), dtype=np.float32)
+
+    # Select valid points and ensure shape (M, 2)
+    valid_points = p1[isFound.ravel() == 1]
+    valid_points = valid_points.reshape(-1, 2)  # removes the middle dim if present
+
+    return valid_points'''
+
+
+
+### 4.1.4
+
+Run the program to view the final output of face tracking. Remember to enter the correct path to video file provided.
+
+
+
+frame_rate = 30
+prev = 0
+gray_prev = None
+p0 = []
+
+refresh_counter = 100
+refresh_reset_to = 100
+camera_mode = 1
+
+if camera_mode == 0:
+    cam = cv2.VideoCapture("Face.mp4")
+else:
+    cam = cv2.VideoCapture(0, cv2.CAP_V4L2)
+
+if not cam.isOpened():
+    raise Exception("Could not open camera/file")
+    
+while True:
+    time_elapsed = time.time() - prev
+    
+    if time_elapsed > 1./frame_rate:
+        
+        ret_val,img = cam.read()
+        
+        if not ret_val:
+                cam.set(cv2.CAP_PROP_POS_FRAMES, 0)  # restart video
+                gray_prev = None  # previous frame
+                p0 = []  # previous points
+                continue
+        prev = time.time()
+        
+        gray, img = prep(img)
+
+        if len(p0) <= 60 or (refresh_counter <= 0 and camera_mode == 1): #10
+            p0, faces, img = get_trackable_points(gray,img)
+            gray_prev = gray.copy()
+
+            refresh_counter = refresh_reset_to # refresh code
+        
+        else:
+            for (x,y,w,h) in faces:
+                cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
+                p1 = do_track_face(gray_prev, gray, p0)
+            for i in p1:
+                cv2.drawMarker(img, (i[0], i[1]),[255,0,0],0)
+            p0 = p1
+
+        if camera_mode == 1:
+            refresh_counter = refresh_counter - 1 # refresh code
+        
+        cv2.imshow('Video feed', img)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+              
+cv2.destroyAllWindows()  
+
+
+
+

@@ -1,0 +1,413 @@
+#   ROS2 | Exercise 4 - Computer Vision
+
+##  Task 3 - Object Detection
+
+### Pre-requisites
+Before you begin this Notebook you have to complete the following tasks explained in the handout
+- [x] Setting up the gazebo simulation as a ROS package
+- [x] Setting up Conda environment to run this jupyter notebook
+
+### Introduction
+Object detection and its importance in robotics. Opencv Intro. Some images
+
+There are 3 parts in this Notebook which covers the following
+   - 3.1 : Basic Image processing and Opencv contour detection
+   - 3.2 : Object detection and Tracking with Video
+   - 3.3 : Object detection and Tracking with ROS2
+
+
+
+
+
+
+
+***
+### 3.1 Basic Image processing with OpenCV 
+
+### 3.1.1
+Familiarize yourself with the basic functionalities available in openCV for basic image reading and visualization with this reference [link](https://docs.opencv.org/4.x/db/deb/tutorial_display_image.html). It has both C++ & Python code. We are following python in this notebook. Execute the following code that reads an image file and displays it in an opencv window.
+
+
+
+import imutils
+import cv2
+import numpy as np
+
+frame = cv2.imread('image.png')
+
+cv2.imshow("Tracking",frame)
+cv2.waitKey(0) & 0xFF
+cv2.destroyAllWindows()
+
+
+
+### 3.1.2
+
+It is important to  pre-process raw input images in computer vision tasks such as object detection and tracking. OpenCV imgproc module contains several functionalities which are often used in image processing.
+
+Convertion between color spaces is necessary to generate image masks. Execute and observe the following code where you convert an image from RGB to HSV color space. The code generates a mask of the green color object.
+
+**Your task**
+
+- [ ] Change HSV values in order to generate masks of other objects.
+
+**References**
+- [Concept of HSL and HSV Color spaces](https://en.wikipedia.org/wiki/HSL_and_HSV)
+- [Opencv basic Image processing functionalities](https://docs.opencv.org/4.x/d7/da8/tutorial_table_of_content_imgproc.html)
+- [OpenCV RGB-HSV color converstions documentation](https://docs.opencv.org/3.4.6/de/d25/imgproc_color_conversions.html#color_convert_rgb_hsv)
+
+
+
+
+# lower and upper boundaries for HSV thresholds
+#Lower = (29, 86, 6)
+#Upper = (64, 255, 255)
+
+Lower = (50, 0, 50)
+Upper = (255, 255, 255)
+
+def prep(frame):
+    frame = imutils.resize(frame, width=600)
+    ## Todo 3.1.3 gaussian blur
+    # blurred =
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv,Lower,Upper)
+
+    kernel = np.ones((5,5),np.float32)/(5*5)
+    mask = cv2.filter2D(mask,-1,kernel)
+    #kernel = np.ones((3,3), np.uint8)
+    #mask = cv2.erode(mask, kernel, iterations=1)
+    kernel = np.ones((13,13), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    
+    
+    
+    ## Todo 3.1.3 erosian and dialation
+    # mask = 
+    # mask = 
+    return mask, frame
+
+
+mask,frame = prep(frame)
+cv2.imshow("Image",frame)
+cv2.imshow("Masked Image",mask)
+cv2.waitKey(0) & 0xFF
+cv2.destroyAllWindows()
+
+
+
+
+
+
+### 3.1.3
+
+The above implementation provides a satisfactory result. However, when dealing with noisy images it is important to perform morphological transformations such as smoothing, erotion and dialation to get better results.
+
+**Your task**
+
+Read the following documentations and implement the following transformations inside the prep_frame() function above.
+
+
+- [ ] Apply Gaussian blur with a kernel size of 11x11
+- [ ] Apply erosion
+- [ ] Apply dialation
+
+**References**
+
+- [Smoothing Images with OpenCV](https://docs.opencv.org/4.5.2/d4/d13/tutorial_py_filtering.html)
+- [Perform Erosion and Dialation on the image mask using OpenCV](https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html)
+
+
+
+
+
+### 3.1.4
+
+Finding contours in an image is useful in object detection and tracking. The code snippet below extracts contours from the image file and draws a circle with its center as the same center of detected contour. Execute the code below and observe the results.
+
+**References**
+- [ Detecting contours with OpenCV](https://docs.opencv.org/4.5.0/d4/d73/tutorial_py_contours_begin.html)
+
+
+
+
+#erosion = cv2.erode(frame, kernel, iterations=1)
+
+### Find contours and display
+def find_cnts(mask):
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
+
+cnts = find_cnts(mask)
+c = max(cnts, key=cv2.contourArea)
+((x, y), radius) = cv2.minEnclosingCircle(c) ## A different contour?
+        
+# Find center of contour using moments in opencvq
+M = cv2.moments(c)
+center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+#circle
+frame1 = frame
+cv2.circle(frame1, (int(x), int(y)), int(radius),(0, 0, 255), 2)
+cv2.circle(frame1, center, 5, (0, 0, 255), -1)   
+
+cv2.imshow("Circle", frame1)
+
+
+## ToDo 3.1.5 
+#  1. Bounding rectancgle
+#  2. Convex Hull
+
+
+cv2.waitKey(0) & 0xFF
+cv2.destroyAllWindows()
+
+
+
+
+### 3.1.5
+The above implementation only uses a minimum enclosing circle for labelling the detected image. There are more labelling options such as bounding boxes and convex hull which may come handy in various computer vision tasks.
+
+**Your task**
+
+- [ ] Implement a bounding rectangle and rotated rectangle on the detected contours by modifying the code in 3.1.4 
+- [ ] Implement a convex hull on the detected contours by modifying the code in 3.1.4
+
+**References**
+- [Contour features in OpenCV](https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_features.html)
+- [Creating Bounding boxes and circles for contours](https://docs.opencv.org/4.x/da/d0c/tutorial_bounding_rects_circles.html)
+-[Convex Hull](https://docs.opencv.org/4.x/d7/d1d/tutorial_hull.html)
+
+
+
+
+***
+### 3.2 Object detection and Tracking with Video
+
+### 3.2.1
+
+Execute and observe the below code snippet which reads frames from a given video file at a pre-defined frame rate.
+
+**Your task**
+- [ ] Implement pre-processing and find contour of the moving blob on by modifiying the same code below
+- [ ] Implement a suitable labelling mode (Enclosed Circle / bounding Box or convex hull) and display the resulted tracking on a seperated window
+
+**Tip** : Use the same functions from 3.1. Avoid creating duplicate functions and unnecessarily lenghty code
+
+
+
+
+
+from imutils.video import VideoStream
+import time
+
+vs = cv2.VideoCapture("test_video.avi")
+time.sleep(2.0)
+
+frame_rate = 30
+prev = 0
+
+Lower = (100, 150, 30)
+Upper = (160, 255, 150)
+
+### Find contours and display
+def find_cnts(mask):
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
+
+while True :
+    time_elapsed = time.time() - prev
+
+    
+    if time_elapsed > 1./frame_rate:
+        frame = vs.read()
+        frame = frame[1]
+        if frame is None:
+            break
+
+        cv2.imshow("Video",frame)
+
+        mask,frame = prep(frame)
+        # Rectangle
+        #top_left = (int(x - radius), int(y - radius))
+        #bottom_right = (int(x + radius), int(y + radius))
+        #cv2.rectangle(frame1, top_left, bottom_right, (0, 0, 255), 2)
+
+
+        cnts = find_cnts(mask)
+        c = max(cnts, key=cv2.contourArea)
+        ((x, y), radius) = cv2.minEnclosingCircle(c) ## A different contour?
+
+        # Find center of contour using moments in opencvq
+        M = cv2.moments(c)
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+        #circle
+        #frame1 = frame
+        #cv2.circle(frame1, (int(x), int(y)), int(radius),(0, 0, 255), 2)
+        #cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+        # Rectangle
+        frame1 = frame
+        top_left = (int(x - radius), int(y - radius))
+        bottom_right = (int(x + radius), int(y + radius))
+        cv2.rectangle(frame1, top_left, bottom_right, (0, 0, 255), 2)
+        cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+
+        
+        cv2.imshow("tracking", frame1)
+    
+
+        
+        #cv2.imshow("Frame", mask)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+        prev = time.time()
+            
+cv2.destroyAllWindows()   
+
+
+
+---
+
+###  3.3 Object detection and Tracking with ROS2
+
+### 3.3.1 
+
+In applications concerning robotic perception, so often visual data are obtained via camera sensors interfaced with ros. In this section you are provided with a ros-ignition simulation package which publish camera sensor data. The code snippet below subscribes to the camera sensor data and stream on to an OpenCV window. 
+
+Assuming you have successfully build the package on your system using the instructions from handout, Open a New shell in you terminal and launch the simulation.
+
+```
+$ source /opt/ros/foxy/setup.bash
+$ cd ~/ws
+$ source install/setup.bash
+$ ros2 launch walking_actor cam_world.launch.py
+```
+
+While the simulation is running in background , run the code snippet below and observe the result
+
+- To close the cv2 window , select the window and press 'q'
+- To stop the execution of code snippet, double press on 'i' in keyboard or interrupt the kernel from menu
+
+
+**Your task**
+
+- [ ] Modify the python code to track the walking actor. You can use any feature of the actor to track.
+- [ ] Display the tracking in a seperate cv2 window
+
+
+**References**
+- [ROS2 python subscriber/publisher](https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Writing-A-Simple-Py-Publisher-And-Subscriber.html)
+- [rclpy API Documentation](https://docs.ros2.org/foxy/api/rclpy/api/execution_and_callbacks.html#module-rclpy.executors)
+
+
+
+
+import sys
+import rclpy
+from rclpy.node import Node
+from cv_bridge import CvBridge
+import numpy as np
+import cv2
+from sensor_msgs.msg import Image, CameraInfo
+#print(sys.path)
+
+bridge = CvBridge()
+
+
+import imutils
+
+Lower = (29, 86, 6)
+Upper = (64, 255, 255)
+
+def prep(frame):
+    frame = imutils.resize(frame, width=600)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv,Lower,Upper)
+
+    kernel = np.ones((5,5),np.float32)/(5*5)
+    mask = cv2.filter2D(mask,-1,kernel)
+    #kernel = np.ones((3,3), np.uint8)
+    #mask = cv2.erode(mask, kernel, iterations=1)
+    kernel = np.ones((13,13), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    return mask, frame
+
+
+### Find contours and display
+def find_cnts(mask):
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
+
+    
+
+class Get_Images(Node):
+
+    def __init__(self):
+        # Initialize the node
+        super().__init__('Image_Subscriber')
+        # Initialize the subscriber
+        self.subscription_ = self.create_subscription( Image,'/camera', self.listener_callback,10)
+        self.subscription_  # prevent unused variable warning
+        timer_period = 0.1  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.K = True
+
+    def listener_callback(self, msg):
+        height = msg.height
+        width = msg.width
+        channel = msg.step//msg.width
+        #frame = np.reshape(msg.data, (height, width, channel))
+        self.frame =  bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        # Disabled due to spam.
+        #self.get_logger().info("Image Received")
+        return self.frame
+    
+    def timer_callback(self):
+        if self.K == True:
+            
+            mask,frame1 = prep(self.frame)
+            cnts = find_cnts(mask)
+            c = max(cnts, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c) 
+            # Find center of contour using moments in opencvq
+            M = cv2.moments(c)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            #circle
+            cv2.circle(frame1, (int(x), int(y)), int(radius),(0, 0, 255), 2)
+            cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+            cv2.imshow("Video feed",self.frame)
+            cv2.imshow("Tracking",frame1)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                self.get_logger().info('Closing stream window..')
+                self.K = False
+                cv2.destroyAllWindows()
+        
+                
+    def stop_stream(self):
+        self.get_logger().info('Stopping the stream ...')
+        
+
+try:
+    
+    rclpy.init(args=None)
+    image_subscriber = Get_Images()
+    rclpy.spin(image_subscriber)
+
+except KeyboardInterrupt:
+    # executes on keyboard kernal interrupt with double pressing button "i"
+    image_subscriber.stop_stream()
+    image_subscriber.destroy_node()
+    rclpy.shutdown()
+    
+    
+    
+    

@@ -1,0 +1,254 @@
+SETUP (Task 2): (Requires password)
+
+cd ~/ws/src && chmod +x setup-notebook.sh && bash setup-notebook.sh && source /opt/ros/humble/setup.bash && source .venv/bin/activate && jupyter notebook
+
+GOTO: Notebooks -> Object_detection_tutorial.ipynb
+
+
+
+
+
+3.1.2:
+Lower = (50, 0, 50)
+Upper = (255, 255, 255)
+
+
+
+3.1.3
+# Apply Gaussian blur with a kernel size of 11x11
+kernel = np.ones((11,11),np.float32)/121
+frame = cv2.filter2D(frame,-1,kernel)
+
+# Apply erosion
+kernel = np.ones((5,5), np.uint8)
+frame = cv2.erode(frame, kernel, iterations=1)
+
+# Apply dialation
+kernel = np.ones((5,5), np.uint8)
+frame = cv2.dilate(frame, kernel, iterations=1)
+
+
+
+3.1.5
+# Rectangle
+top_left = (int(x - radius), int(y - radius))
+bottom_right = (int(x + radius), int(y + radius))
+cv2.rectangle(frame1, top_left, bottom_right, (0, 0, 255), 2)
+
+# Rotated rectangle
+rect = cv2.minAreaRect(c)
+box = cv2.boxPoints(rect)
+box = np.int0(box)
+cv2.drawContours(frame1, [box], 0, (0, 0, 255), 2)
+
+# convex hull
+hull = cv2.convexHull(c)
+frame1 = frame.copy()
+cv2.drawContours(frame1, [hull], 0, (255, 0, 255), 2)  # blue outline
+cv2.imshow("Convex Hull", frame1)
+
+
+
+
+
+
+3.2.1
+CODE:
+
+def prep(frame):
+    frame = imutils.resize(frame, width=600)
+    ## Todo 3.1.3 gaussian blur
+    kernel = np.ones((11,11),np.float32)/121
+    frame = cv2.filter2D(frame,-1,kernel)
+    # blurred =
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv,Lower,Upper)
+    
+    ## Todo 3.1.3 erosian and dialation
+    # mask = 
+    # mask = 
+    return mask, frame
+
+
+from imutils.video import VideoStream
+import time
+
+vs = cv2.VideoCapture("test_video.avi")
+time.sleep(2.0)
+
+frame_rate = 30
+prev = 0
+
+Lower = (100, 150, 30)
+Upper = (160, 255, 150)
+
+### Find contours and display
+def find_cnts(mask):
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
+
+while True :
+    time_elapsed = time.time() - prev
+
+    
+    if time_elapsed > 1./frame_rate:
+        frame = vs.read()
+        frame = frame[1]
+        if frame is None:
+            break
+
+        cv2.imshow("Video",frame)
+
+        mask,frame = prep(frame)
+        # Rectangle
+        #top_left = (int(x - radius), int(y - radius))
+        #bottom_right = (int(x + radius), int(y + radius))
+        #cv2.rectangle(frame1, top_left, bottom_right, (0, 0, 255), 2)
+
+
+        cnts = find_cnts(mask)
+        c = max(cnts, key=cv2.contourArea)
+        ((x, y), radius) = cv2.minEnclosingCircle(c) ## A different contour?
+
+        # Find center of contour using moments in opencvq
+        M = cv2.moments(c)
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+        #circle
+        #frame1 = frame
+        #cv2.circle(frame1, (int(x), int(y)), int(radius),(0, 0, 255), 2)
+        #cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+        # Rectangle
+        frame1 = frame
+        top_left = (int(x - radius), int(y - radius))
+        bottom_right = (int(x + radius), int(y + radius))
+        cv2.rectangle(frame1, top_left, bottom_right, (0, 0, 255), 2)
+        cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+
+        
+        cv2.imshow("tracking", frame1)
+    
+
+        
+        #cv2.imshow("Frame", mask)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+        prev = time.time()
+            
+cv2.destroyAllWindows()   
+
+
+
+
+
+
+
+3.3
+RUN: (Note: "foxy" -> "Humble")
+source /opt/ros/humble/setup.bash && cd ~/ws && source install/setup.bash && ros2 launch walking_actor cam_world.launch.py
+
+
+CODE:
+
+import sys
+import rclpy
+from rclpy.node import Node
+from cv_bridge import CvBridge
+import numpy as np
+import cv2
+from sensor_msgs.msg import Image, CameraInfo
+#print(sys.path)
+
+bridge = CvBridge()
+
+
+import imutils
+
+Lower = (29, 86, 6)
+Upper = (64, 255, 255)
+
+def prep(frame):
+    frame = imutils.resize(frame, width=600)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv,Lower,Upper)
+
+    kernel = np.ones((5,5),np.float32)/(5*5)
+    mask = cv2.filter2D(mask,-1,kernel)
+    #kernel = np.ones((3,3), np.uint8)
+    #mask = cv2.erode(mask, kernel, iterations=1)
+    kernel = np.ones((13,13), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    return mask, frame
+
+
+### Find contours and display
+def find_cnts(mask):
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
+
+    
+
+class Get_Images(Node):
+
+    def __init__(self):
+        # Initialize the node
+        super().__init__('Image_Subscriber')
+        # Initialize the subscriber
+        self.subscription_ = self.create_subscription( Image,'/camera', self.listener_callback,10)
+        self.subscription_  # prevent unused variable warning
+        timer_period = 0.1  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.K = True
+
+    def listener_callback(self, msg):
+        height = msg.height
+        width = msg.width
+        channel = msg.step//msg.width
+        #frame = np.reshape(msg.data, (height, width, channel))
+        self.frame =  bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self.get_logger().info("Image Received")
+        return self.frame
+    
+    def timer_callback(self):
+        if self.K == True:
+            
+            mask,frame1 = prep(self.frame)
+            cnts = find_cnts(mask)
+            c = max(cnts, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c) 
+            # Find center of contour using moments in opencvq
+            M = cv2.moments(c)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            #circle
+            cv2.circle(frame1, (int(x), int(y)), int(radius),(0, 0, 255), 2)
+            cv2.circle(frame1, center, 5, (0, 0, 255), -1)
+
+            cv2.imshow("Video feed",self.frame)
+            cv2.imshow("Tracking",frame1)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                self.get_logger().info('Closing stream window..')
+                self.K = False
+                cv2.destroyAllWindows()
+        
+                
+    def stop_stream(self):
+        self.get_logger().info('Stopping the stream ...')
+        
+
+try:
+    
+    rclpy.init(args=None)
+    image_subscriber = Get_Images()
+    rclpy.spin(image_subscriber)
+
+except KeyboardInterrupt:
+    # executes on keyboard kernal interrupt with double pressing button "i"
+    image_subscriber.stop_stream()
+    image_subscriber.destroy_node()
+    rclpy.shutdown()
