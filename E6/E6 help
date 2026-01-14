@@ -1,0 +1,99 @@
+
+
+
+Sourscing:
+source ~/ws_moveit/install/setup.bash
+
+BUILD WITHOUT BREAKING PC, THIS SHALL ON
+colcon [REMOVE THIS TO CONFIRM] build --executor sequential --mixin release
+
+
+WHEN BUILDING, ONLY BUILD WHAT YOU NEED SO THAT IT WOULD NOT BREAK STUFF
+cd ~/ws_moveit && source ~/ws_moveit/install/setup.bash && colcon build --mixin debug --packages-select hello_moveit
+
+Run stuff:
+source ~/ws_moveit/install/setup.bash && ros2 launch moveit2_tutorials demo.launch.py
+
+cd ~/ws_moveit && source install/setup.bash && ros2 run hello_moveit hello_moveit
+
+
+
+
+Task 5
+Compile:
+cd ~/ws_moveit && source ~/ws_moveit/install/setup.bash && colcon build --mixin debug --packages-select mtc_tutorial
+
+
+	Making the lauch file:
+mkdir -p ~/ws_moveit/src/mtc_tutorial/launch
+nano ~/ws_moveit/src/mtc_tutorial/launch/pick_place_demo.launch.py
+
+cd ~/ws_moveit && source ~/ws_moveit/install/setup.bash && colcon build --mixin debug --packages-select mtc_tutorial
+
+
+
+RUN:
+Fix:
+ros2 launch mtc_tutorial pick_place_demo.launch.py.save ??????????????? Magic
+ros2 launch moveit2_tutorials mtc_demo.launch.py
+
+
+
+
+
+
+OLD:
+cd ~/ws_moveit && source install/setup.bash
+ros2 launch moveit_resources_panda_moveit_config demo.launch.py & ros2 launch mtc_tutorial mtc_demo.launch.py
+
+
+ros2 launch moveit2_tutorials mtc_demo_minimal.launch.py
+	Run:
+	ros2 launch moveit2_tutorials mtc_demo.launch.py
+
+	cd ~/ws_moveit && source install/setup.bash && ros2 run mtc_tutorial mtc_node
+
+	ros2 launch mtc_tutorial pick_place_demo.launch.py
+	
+	
+	
+RobotState
+
+    Represents the robot’s full kinematic state (joint positions, transforms, attached objects).
+
+    Used internally for collision checking, IK, and trajectory validation.
+
+CurrentStateMonitor
+
+    Listens to ROS topics like /joint_states and TF.
+
+    Continuously updates the RobotState to reflect the robot’s actual configuration.
+
+    Ensures planners always start from the true current state.
+
+PlanningScene
+
+    Core data structure for collision checking and constraint evaluation.
+
+    Stores the robot model, environment objects, and allowed collision matrices.
+
+    Provides APIs to check if a trajectory or state is valid.
+
+PlanningSceneMonitor
+
+    Wraps a PlanningScene and keeps it synchronized with ROS topics.
+
+    Subscribes to updates about the world (collision objects, attached objects, robot state).
+
+    Provides thread‑safe access to the scene for planners, controllers, and visualization tools.
+
+PlanningSceneInterface
+
+    High‑level ROS2 interface for external nodes (like user applications).
+
+    Allows adding/removing collision objects, attaching objects to the robot, or clearing the scene.
+
+    Communicates with the PlanningSceneMonitor to propagate changes.
+
+
+
